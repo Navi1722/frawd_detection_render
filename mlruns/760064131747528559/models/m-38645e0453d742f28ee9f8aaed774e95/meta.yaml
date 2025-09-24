@@ -1,0 +1,10 @@
+artifact_location: file:///e:/SWT%20LAB/PGM13/mlruns/760064131747528559/models/m-38645e0453d742f28ee9f8aaed774e95/artifacts
+creation_timestamp: 1758524186456
+experiment_id: '760064131747528559'
+last_updated_timestamp: 1758524208766
+model_id: m-38645e0453d742f28ee9f8aaed774e95
+model_type: null
+name: model
+source_run_id: 3714ff0d65f4413fa7b1a17ed775a9ce
+status: 2
+status_message: null

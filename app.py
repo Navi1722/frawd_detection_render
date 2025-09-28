@@ -11,30 +11,27 @@ from sklearn.metrics import accuracy_score
 import mlflow
 import mlflow.sklearn
 from mlflow.tracking import MlflowClient
+from mlflow.exceptions import MlflowException
 
 app = FastAPI(title="Fraud Detection API")
 
 class InputData(BaseModel):
-    features: list[float]  # 20 features
+    features: list[float]
 
-# MLflow setup
 MLFLOW_TRACKING_URI = "sqlite:///mlruns.db"
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 mlflow.set_experiment("FraudDetection")
 MODEL_NAME = "FraudDetectionModel"
 client = MlflowClient()
 
-# Train and register models
 def train_and_register_models():
+    # Check if model already exists
     try:
         client.get_registered_model(MODEL_NAME)
-        model_exists = True
-    except mlflow.exceptions.RestException:
-        model_exists = False
-
-    if model_exists:
-        print(f"Model '{MODEL_NAME}' already exists. Skipping training.")
+        print(f"Registered model '{MODEL_NAME}' found. Skipping training.")
         return f"models:/{MODEL_NAME}/Production"
+    except MlflowException:
+        print(f"No registered model found. Training new model '{MODEL_NAME}'...")
 
     # Generate synthetic dataset
     X, y = make_classification(n_samples=1000, n_features=20, n_informative=15,
@@ -58,7 +55,7 @@ def train_and_register_models():
 
             mlflow.log_param("model_type", name)
             mlflow.log_metric("accuracy", acc)
-            mlflow.sklearn.log_model(model, name=f"{name}_model", registered_model_name=MODEL_NAME)
+            mlflow.sklearn.log_model(model, f"{name}_model", registered_model_name=MODEL_NAME)
 
             print(f"{name} logged with accuracy: {acc:.4f}")
 
@@ -78,16 +75,16 @@ def train_and_register_models():
     print(f"Version {best_version} promoted to Production with accuracy {best_acc:.4f}")
     return f"models:/{MODEL_NAME}/Production"
 
-# Load model at startup
+# Load the model (train if needed)
 MODEL_URI = train_and_register_models()
 prod_model = mlflow.pyfunc.load_model(MODEL_URI)
-
-@app.post("/predict")
-def predict(input_data: InputData):
-    features_array = np.array([input_data.features])
-    preds = prod_model.predict(features_array)
-    return {"prediction": int(preds[0])}
 
 @app.get("/health")
 def health():
     return {"status": "running"}
+
+@app.post("/predict")
+def predict(input_data: InputData):
+    features_array = np.array([input_data.features])
+    prediction = prod_model.predict(features_array)
+    return {"prediction": int(prediction[0])}

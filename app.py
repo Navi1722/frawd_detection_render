@@ -13,13 +13,14 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 # ================== Step 0: Setup MLflow ==================
-mlruns_path = os.path.join(os.getcwd(), "mlruns")
-os.makedirs(mlruns_path, exist_ok=True)
-mlflow.set_tracking_uri(f"file://{mlruns_path}")
+# Render-friendly relative folder for MLflow
+MLRUNS_PATH = os.path.join(os.getcwd(), "mlruns")
+os.makedirs(MLRUNS_PATH, exist_ok=True)
+mlflow.set_tracking_uri(f"file://{MLRUNS_PATH}")
 mlflow.set_experiment("FraudDetection")
 
 MODEL_NAME = "FraudDetectionModel"
-BEST_MODEL_PATH_FILE = "best_model_path.txt"
+BEST_MODEL_FILE = "best_model_uri.txt"
 
 # ================== Step 1: Prepare Dataset ==================
 X, y = make_classification(
@@ -44,11 +45,12 @@ def train_and_log_models():
 
     for name, model in models.items():
         with mlflow.start_run(run_name=name) as run:
+            # Train
             model.fit(X_train, y_train)
             preds = model.predict(X_test)
             acc = accuracy_score(y_test, preds)
 
-            # Log parameters and metrics
+            # Log params and metrics
             mlflow.log_param("model_type", name)
             for param_name, param_value in model.get_params().items():
                 try:
@@ -57,30 +59,30 @@ def train_and_log_models():
                     continue
             mlflow.log_metric("accuracy", acc)
 
-            # Log model
-            artifact_subpath = f"{name}_model"
+            # Log model with safe artifact path
+            artifact_path = f"{name}_model"
             mlflow.sklearn.log_model(
                 sk_model=model,
-                artifact_path=artifact_subpath,
+                artifact_path=artifact_path,
                 registered_model_name=MODEL_NAME
             )
 
-            print(f"{name} logged with accuracy: {acc:.4f}")
-
             if acc > best_acc:
                 best_acc = acc
-                best_model_uri = mlflow.get_artifact_uri(artifact_subpath)
+                best_model_uri = mlflow.get_artifact_uri(artifact_path)
 
-    # Save the best model URI to file so we can load it next time
-    with open(BEST_MODEL_PATH_FILE, "w") as f:
+            print(f"{name} logged with accuracy: {acc:.4f}")
+
+    # Save best model URI for future loads
+    with open(BEST_MODEL_FILE, "w") as f:
         f.write(best_model_uri)
 
-    print(f"Best model URI: {best_model_uri}, accuracy: {best_acc:.4f}")
+    print(f"Best model URI: {best_model_uri} with accuracy {best_acc:.4f}")
     return best_model_uri
 
 # Load best model if exists
-if os.path.exists(BEST_MODEL_PATH_FILE):
-    with open(BEST_MODEL_PATH_FILE, "r") as f:
+if os.path.exists(BEST_MODEL_FILE):
+    with open(BEST_MODEL_FILE, "r") as f:
         best_model_uri = f.read().strip()
     print(f"Loading existing best model from {best_model_uri}")
 else:
@@ -93,7 +95,7 @@ prod_model = mlflow.pyfunc.load_model(best_model_uri)
 app = FastAPI(title="Fraud Detection API")
 
 class InputData(BaseModel):
-    features: list  # List of 20 numeric features
+    features: list  # 20 numeric features
 
 @app.get("/")
 def home():

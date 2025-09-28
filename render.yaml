@@ -3,24 +3,22 @@ services:
     name: mlflow-server
     env: python
     plan: starter
-    buildCommand: pip install mlflow psycopg2-binary boto3
+    buildCommand: pip install mlflow psycopg2-binary
     startCommand: >
-      mlflow server
-      --backend-store-uri postgresql+psycopg2://${MLFLOW_DB_USER}:${MLFLOW_DB_PASSWORD}@${MLFLOW_DB_HOST}:${MLFLOW_DB_PORT}/${MLFLOW_DB_NAME}
-      --default-artifact-root /mnt/data/mlruns
-      --host 0.0.0.0
+      mlflow server \
+      --backend-store-uri postgresql+psycopg2://${MLFLOW_DB_USER}:${MLFLOW_DB_PASSWORD}@${MLFLOW_DB_HOST}/${MLFLOW_DB_NAME} \
+      --default-artifact-root /mnt/data/mlruns \
+      --host 0.0.0.0 \
       --port $PORT
     envVars:
       - key: MLFLOW_DB_USER
-        value: mlflow_5jwo_user
+        value: mlflow_5jwo_user          # Replace with your Render DB username
       - key: MLFLOW_DB_PASSWORD
-        value: U8n4JZyJLhTgrv4AWdk482ocsEUz3JpX
+        value: U8n4JZyJLhTgrv4AWdk482ocsEUz3JpX    # Replace with your Render DB password
       - key: MLFLOW_DB_HOST
-        value: dpg-d3cm2aumcj7s73dngiig-a
-      - key: MLFLOW_DB_PORT
-        value: "5432"
+        value: dpg-d3cm2aumcj7s73dngiig-a   # Replace with your DB host
       - key: MLFLOW_DB_NAME
-        value: mlflow_5jwo
+        value: mlflow_5jwo               # Replace with your Render DB name
     disks:
       - name: mlflow-data
         mountPath: /mnt/data

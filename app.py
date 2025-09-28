@@ -1,32 +1,40 @@
+# app.py
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import mlflow.pyfunc
 import numpy as np
-
-class Features(BaseModel):
-    features: list  # 20 features
+from typing import List
 
 app = FastAPI(title="Fraud Detection API")
 
-# Load latest production model from local mlruns
+# Load the Production model from local MLflow registry
+MODEL_NAME = "FraudDetectionModel"
+MODEL_STAGE = "Production"
+
 try:
-    prod_model_uri = "models:/FraudDetectionModel/Production"
-    model = mlflow.pyfunc.load_model(prod_model_uri)
+    model = mlflow.pyfunc.load_model(f"models:/{MODEL_NAME}/{MODEL_STAGE}")
 except Exception as e:
-    print("Error loading model:", e)
+    print(f"Error loading model: {e}")
     model = None
+
+class Features(BaseModel):
+    features: List[float]
 
 @app.get("/")
 def root():
-    return {"message": "Fraud Detection API is running"}
+    return {"message": "Fraud Detection API is live!"}
 
 @app.post("/predict")
 def predict(data: Features):
     if model is None:
         raise HTTPException(status_code=500, detail="Model not loaded")
     try:
-        features_array = np.array(data.features).reshape(1, -1)
-        pred = model.predict(features_array)
-        return {"prediction": int(pred[0])}
+        X = np.array(data.features).reshape(1, -1)
+        pred = model.predict(X)
+        return {"prediction": pred.tolist()}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Prediction error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error during prediction: {e}")
+
+@app.get("/health")
+def health():
+    return {"status": "healthy" if model else "model not loaded"}
